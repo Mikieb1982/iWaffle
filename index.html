@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iWaffle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>
+    // Set theme on initial load to prevent FOUC (Flash of Unstyled Content)
+    // Default to dark mode unless 'light' is explicitly stored.
+    if (localStorage.theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+  <style>
+    :root {
+      /* Core Palette */
+      --color-cream: #FFF6E5;
+      --color-butter-yellow: #FFD97D;
+      --color-syrup-brown: #6B3E26;
+      --color-strawberry-pink: #FF7E9D;
+      --color-strawberry-pink-rgb: 255, 126, 157;
+      --color-blueberry-purple: #6C63FF;
+      --color-charcoal: #333333;
+
+      /* Semantic Variables (Light) */
+      --color-background: var(--color-cream);
+      --color-text-primary: var(--color-charcoal);
+      --color-text-secondary: #5a616d;
+      --color-text-on-heading: var(--color-cream);
+      --color-heading: var(--color-syrup-brown);
+      --color-card-background: rgba(255, 255, 255, 0.6);
+      --color-subtle-background: rgba(255, 246, 229, 0.6);
+      --color-input-background: rgba(255, 255, 255, 0.8);
+      --color-border: rgba(107, 62, 38, 0.3);
+      --color-button-inactive-bg: #E5E7EB;
+      --color-button-inactive-text: var(--color-charcoal);
+
+      --font-body: 'Poppins', sans-serif;
+      --font-display: 'Pacifico', cursive;
+    }
+
+    html.dark {
+      /* Semantic Variables (Dark) */
+      --color-background: #121828;
+      --color-text-primary: #E5E7EB;
+      --color-text-secondary: #9CA3AF;
+      --color-text-on-heading: #121828;
+      --color-heading: var(--color-butter-yellow);
+      --color-card-background: rgba(26, 32, 44, 0.6);
+      --color-subtle-background: rgba(30, 41, 59, 0.5);
+      --color-input-background: rgba(26, 32, 44, 0.8);
+      --color-border: rgba(255, 217, 125, 0.3);
+      --color-button-inactive-bg: #374151;
+      --color-button-inactive-text: var(--color-text-primary);
+    }
+
+    body {
+      background-color: var(--color-background);
+      color: var(--color-text-primary);
+      font-family: var(--font-body);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .json-key { color: var(--color-blueberry-purple); }
+    .json-string { color: var(--color-heading); }
+    .json-number { color: var(--color-strawberry-pink); }
+    .json-boolean { color: var(--color-strawberry-pink); }
+    .json-null { color: var(--color-text-secondary); }
+    
+    .typewriter-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.2em;
+      background-color: var(--color-text-primary);
+      animation: blink 0.7s infinite;
+      margin-left: 2px;
+      vertical-align: bottom;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+    @keyframes pulse-mic {
+        0% {
+            box-shadow: 0 0 0 0 rgba(var(--color-strawberry-pink-rgb), 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(var(--color-strawberry-pink-rgb), 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(var(--color-strawberry-pink-rgb), 0);
+        }
+    }
+    .animate-pulse-mic {
+        animation: pulse-mic 2s infinite;
+    }
+    @keyframes active-bounce {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        animation-timing-function: ease-in-out;
+      }
+      50% {
+        transform: translateY(-6px) scale(1.1);
+        animation-timing-function: ease-in-out;
+      }
+    }
+    .animate-active-bounce {
+        animation: active-bounce 1.2s infinite;
+    }
+    @keyframes waveform {
+      0%, 100% {
+        transform: scaleY(0.4);
+      }
+      50% {
+        transform: scaleY(1);
+      }
+    }
+    .animate-waveform {
+      animation: waveform 1.2s ease-in-out infinite;
+    }
+    @keyframes jiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(5deg) scale(1.05); }
+      75% { transform: rotate(-5deg) scale(1.05); }
+    }
+    .animate-jiggle {
+      animation: jiggle 0.5s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://aistudiocdn.com/react@^19.1.1",
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+      "react/": "https://aistudiocdn.com/react@^19.1.1/",
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+    }
+  }
+  </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

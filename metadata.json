@@ -1,0 +1,7 @@
+{
+  "name": "iWaffle",
+  "description": "Cook up the perfect prompt in a cozy creative playground.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

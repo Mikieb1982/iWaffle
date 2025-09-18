@@ -1,0 +1,30 @@
+
+import React from 'react';
+
+export const LogoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg 
+    viewBox="0 0 64 64" 
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+    >
+    <g fill="currentColor">
+      {/* Waffle Body */}
+      <path d="M56,61H8a5,5,0,0,1-5-5V8A5,5,0,0,1,8,3H56a5,5,0,0,1,5,5V56A5,5,0,0,1,56,61Z" 
+        fill="#FFD97D" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" />
+
+      {/* Waffle Grid */}
+      <line x1="18" y1="3" x2="18" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+      <line x1="32" y1="3" x2="32" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+      <line x1="46" y1="3" x2="46" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+      <line x1="3" y1="18" x2="61" y2="18" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+      <line x1="3" y1="32" x2="61" y2="32" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+      <line x1="3" y1="46" x2="61" y2="46" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
+
+      {/* Thought Bubble */}
+      <path d="M48,15.5c7.2,0,13,5.8,13,13s-5.8,13-13,13H33c-3.9,0-7-3.1-7-7s3.1-7,7-7h18" 
+        fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" transform="translate(-10, -15)"/>
+      <circle cx="28" cy="30" r="3" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/>
+      <circle cx="23" cy="36" r="2" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/>
+    </g>
+  </svg>
+);
