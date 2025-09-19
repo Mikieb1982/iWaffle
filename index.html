@@ -405,16 +405,24 @@
         }
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; // Stop recognition after a pause in speech
+        recognition.continuous = true; // Keep listening during pauses
         recognition.interimResults = true; // Show results as the user speaks
         recognition.lang = 'en-US';
 
         recognition.onresult = (event) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0])
-            .map(result => result.transcript)
-            .join('');
-          setInputValue(transcript);
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          // The check `inputValue.endsWith(' ')` is a simple way to see if we're starting a new phrase.
+          // A more robust solution might be needed for different languages or dictation styles.
+          if (finalTranscript && !inputValue.endsWith(' ') && inputValue !== '') {
+            setInputValue(inputValue + ' ' + finalTranscript);
+          } else {
+            setInputValue(inputValue + finalTranscript);
+          }
         };
 
         recognition.onerror = (event) => {
@@ -423,7 +431,10 @@
         };
 
         recognition.onend = () => {
-          setIsListening(false);
+          // Keep listening unless the user explicitly stops it
+          if (isListening) {
+             recognitionRef.current.start();
+          }
         };
 
         recognitionRef.current = recognition;
@@ -431,13 +442,14 @@
         return () => {
           recognitionRef.current?.abort();
         };
-      }, []);
+      }, [isListening, inputValue]);
     
       const handleMicClick = () => {
         if (!recognitionRef.current || isLoading) return;
         setMicError(''); 
         if (isListening) { 
             recognitionRef.current.stop();
+            setIsListening(false);
         } else { 
             setInputValue(''); 
             recognitionRef.current.start(); 
