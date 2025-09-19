@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', sans-serif;
+}
+
+html.light {
+  --color-background: #FAF8F4; /* Creamy White */
+  --color-foreground: #FFFFFF;
+  --color-subtle-background: #F5F1E8;
+  --color-text-primary: #2C2A28; /* Charcoal */
+  --color-text-secondary: #78716C;
+  --color-heading: #2C2A28;
+  --color-border: #E7E5E4;
+  --color-input-background: #FFFFFF;
+  --color-button-primary: #FF6B81; /* Strawberry Pink */
+  --color-button-primary-hover: #E65A6F;
+  --color-button-secondary: #FDE68A; /* Butter Yellow */
+  --color-button-secondary-hover: #FCDA5A;
+  --color-accent: #FF6B81;
+  --color-accent-text: #FFFFFF;
+
+  color-scheme: light;
+}
+
+html.dark {
+  --color-background: #2C2A28; /* Charcoal */
+  --color-foreground: #393633;
+  --color-subtle-background: #22201E;
+  --color-text-primary: #F5F1E8; /* Creamy White */
+  --color-text-secondary: #A8A29E;
+  --color-heading: #FAF8F4;
+  --color-border: #57534E;
+  --color-input-background: #393633;
+  --color-button-primary: #FF6B81; /* Strawberry Pink */
+  --color-button-primary-hover: #E65A6F;
+  --color-button-secondary: #FDE68A; /* Butter Yellow */
+  --color-button-secondary-hover: #FCDA5A;
+  --color-accent: #FF8BA0;
+  --color-accent-text: #2C2A28;
+
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}

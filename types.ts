@@ -1,14 +1,7 @@
-
-export type Theme = 'light' | 'dark';
-
-export interface ChatMessage {
-  id: number | string;
-  role: 'user' | 'model';
-  content: string;
-}
-
-export interface PromptHistoryItem {
+export type Message = {
   id: string;
-  prompt: string;
-  timestamp: number;
-}
+  text: string;
+  sender: 'user' | 'model';
+  isTyping?: boolean;
+  json?: any;
+};

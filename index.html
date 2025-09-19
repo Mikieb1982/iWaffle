@@ -1,76 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iWaffle</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg-primary: #FAF8F4; /* Creamy off-white */
-      --bg-secondary: #FFFFFF;
-      --text-primary: #3D2C24; /* Dark chocolate brown */
-      --text-secondary: #7C6C63;
-      --accent: #FFD43B; /* Butter yellow */
-      --accent-hover: #FFC900;
-      --border-color: #EDEAE6;
-      --shadow-color: rgba(61, 44, 36, 0.08);
-      --shadow-color-strong: rgba(61, 44, 36, 0.12);
-      --logo-waffle: #F3EADC;
-      --logo-butter: #FFD43B;
-      --code-bg: #FDFCFB;
-      --code-text: #5C4B44;
-      font-family: 'Poppins', sans-serif;
-    }
-    html.dark {
-      --bg-primary: #211A16;
-      --bg-secondary: #2C231E;
-      --text-primary: #E8E2DD;
-      --text-secondary: #9B8F88;
-      --accent: #FFD43B;
-      --accent-hover: #FFC900;
-      --border-color: #403630;
-      --shadow-color: rgba(0, 0, 0, 0.1);
-      --shadow-color-strong: rgba(0, 0, 0, 0.15);
-      --logo-waffle: #52443C;
-      --logo-butter: #FFD43B;
-      --code-bg: #2C231E;
-      --code-text: #D8D2CD;
-    }
-    body {
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    .animate-emerge { animation: emerge 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-    .animate-expandShadow { animation: expandShadow 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-    .animate-fadeIn-input { animation: fadeIn 0.2s 0.25s ease-out forwards; }
-    .animate-fadeIn-buttons { animation: fadeIn 0.2s 0.3s ease-out forwards; }
-
-    @keyframes emerge {
-      from { transform: scale(0.95); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-    @keyframes expandShadow {
-      from { box-shadow: 0 2px 8px var(--shadow-color); }
-      to { box-shadow: 0 4px 16px var(--shadow-color-strong); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    .wave-bar { animation: wave 1.2s infinite ease-in-out; }
-    @keyframes wave {
-      0%, 40%, 100% { transform: scaleY(0.4); }
-      20% { transform: scaleY(1.0); }
-    }
-  </style>
-</head>
-<body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
-</html>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "vite": "https://aistudiocdn.com/vite@^7.1.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
+    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.1"
+  }
+}
+</script>
+full contents of index.html

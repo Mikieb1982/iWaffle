@@ -1,57 +1,79 @@
-// This service file centralizes data-fetching logic.
+// services/geminiService.ts
+import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
+
+// fix: Per guidelines, API_KEY is assumed to be available from process.env. The key name is also updated to API_KEY.
+// Initialize the GoogleGenAI client with the API key from environment variables.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const textModel = 'gemini-2.5-flash';
+
+let chatSession: Chat | null = null;
+
+// Creates and retrieves a singleton chat session.
+const getChatSession = () => {
+    if (!chatSession) {
+        chatSession = ai.chats.create({
+            model: textModel,
+        });
+    }
+    return chatSession;
+}
 
 /**
- * Dummy stream for demonstration without a real API key.
- * In a real application, this would be replaced by the call to the Gemini API.
+ * Sends a message to the Gemini model and streams the response.
+ * @param message The user's message.
+ * @returns An async generator that yields response chunks.
  */
-export async function* streamMockResponse(prompt: string) {
-    const response = `This is a simulated response for your prompt: "${prompt}". In a real application, this text would stream in from the Gemini API. The iWaffle interface is designed to be a cozy and creative playground for prompt engineering.`;
-    const words = response.split(' ');
-    for (const word of words) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        yield word + ' ';
+export const streamChat = async function* (message: string) {
+    try {
+        const chat = getChatSession();
+        // Use sendMessageStream for streaming responses.
+        const result = await chat.sendMessageStream({ message });
+        for await (const chunk of result) {
+            // Yield the text from each chunk.
+            yield chunk.text;
+        }
+    } catch (error) {
+        console.error("Error streaming message from Gemini:", error);
+        if (error instanceof Error) {
+            yield `Error: ${error.message}`;
+        } else {
+            yield "An unknown error occurred while streaming.";
+        }
     }
-}
-
-
-/*
-// Example implementation for when a build system and API key are in place:
-import { GoogleGenAI } from "@google/genai";
-
-let ai;
-
-const getAiClient = () => {
-  if (!ai) {
-    // IMPORTANT: In a real client-side app, the API key should be handled
-    // securely, often by making requests to your own server backend that
-    // then calls the Gemini API. Exposing API keys in the browser is risky.
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("API_KEY environment variable not set");
-    }
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
 };
 
-export async function* streamChatResponse(prompt: string) {
-  try {
-    const aiClient = getAiClient();
-    const model = 'gemini-2.5-flash';
-
-    const stream = await aiClient.models.generateContentStream({
-      model,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
-
-    for await (const chunk of stream) {
-      if (chunk.text) {
-        yield chunk.text;
-      }
+/**
+ * Generates a JSON response from the Gemini model based on a prompt and a schema.
+ * @param prompt The user's prompt.
+ * @param schema The desired JSON schema for the response.
+ * @returns A string containing the JSON response.
+ */
+export const generateJsonWithSchema = async (prompt: string, schema: any): Promise<string> => {
+    try {
+        // Use generateContent for a single, non-chat request.
+        const response = await ai.models.generateContent({
+            model: textModel,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema
+            }
+        });
+        // Return the text part of the response, which will be a JSON string.
+        return response.text;
+    } catch (error) {
+        console.error("Error generating JSON from Gemini:", error);
+        if (error instanceof Error) {
+            return JSON.stringify({ error: error.message });
+        }
+        return JSON.stringify({ error: "An unknown error occurred." });
     }
-  } catch (error) {
-    console.error("Error streaming response from Gemini:", error);
-    yield "Sorry, I ran into a waffle of a problem. Please try again.";
-  }
+};
+
+/**
+ * Resets the current chat session.
+ */
+export const resetChatSession = () => {
+    chatSession = null;
 }
-*/

@@ -1,7 +1,6 @@
-
 import React from 'react';
 
-export const MessageIcon = () => (
+export const MessageIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg 
         xmlns="http://www.w3.org/2000/svg" 
         width="24" 
@@ -12,9 +11,8 @@ export const MessageIcon = () => (
         strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
-        className="h-5 w-5"
+        {...props}
     >
-        <path d="m5 12 7-7 7 7" />
-        <path d="M12 19V5" />
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
 );

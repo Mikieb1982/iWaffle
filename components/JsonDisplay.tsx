@@ -1,14 +1,29 @@
 import React from 'react';
 import { CopyButton } from './CopyButton';
 
-export const JsonDisplay = ({ jsonData }) => {
-  const prettyJson = JSON.stringify(jsonData, null, 2);
+interface JsonDisplayProps {
+  jsonData: any;
+}
+
+export const JsonDisplay: React.FC<JsonDisplayProps> = ({ jsonData }) => {
+  let jsonString: string;
+  try {
+    jsonString = JSON.stringify(jsonData, null, 2);
+  } catch (e) {
+    jsonString = "Invalid JSON object";
+    if (typeof jsonData === 'string') {
+        jsonString = jsonData;
+    }
+  }
+
   return (
-    <div className="bg-code-bg text-code-text rounded-lg p-4 my-4 relative text-sm font-mono border border-border-color">
-      <pre><code>{prettyJson}</code></pre>
+    <div className="bg-[--color-background] rounded-md relative text-sm">
       <div className="absolute top-2 right-2">
-        <CopyButton textToCopy={prettyJson} />
+        <CopyButton textToCopy={jsonString} />
       </div>
+      <pre className="overflow-x-auto p-4">
+        <code>{jsonString}</code>
+      </pre>
     </div>
   );
 };
