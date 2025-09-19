@@ -7,13 +7,11 @@ export default defineConfig(({ mode }) => {
     return {
       plugins: [react()],
       define: {
-        // fix: Use API_KEY as per the coding guidelines.
-        // Expose env variables to the client, ensuring they are stringified
-        'process.env.API_KEY': JSON.stringify(env.API_KEY)
+        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
       resolve: {
         alias: {
-          // Allows for cleaner import paths, e.g., '@/components'
           '@': path.resolve(__dirname, '.'),
         }
       }
