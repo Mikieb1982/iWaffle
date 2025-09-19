@@ -8,149 +8,69 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <script>
-    // Set theme on initial load to prevent FOUC (Flash of Unstyled Content)
-    // Default to dark mode unless 'light' is explicitly stored.
-    if (localStorage.theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-  </script>
   <style>
     :root {
-      /* Core Palette */
-      --color-cream: #FFF6E5;
-      --color-butter-yellow: #FFD97D;
-      --color-syrup-brown: #6B3E26;
-      --color-strawberry-pink: #FF7E9D;
-      --color-strawberry-pink-rgb: 255, 126, 157;
-      --color-blueberry-purple: #6C63FF;
-      --color-charcoal: #333333;
-
-      /* Semantic Variables (Light) */
-      --color-background: var(--color-cream);
-      --color-text-primary: var(--color-charcoal);
-      --color-text-secondary: #5a616d;
-      --color-text-on-heading: var(--color-cream);
-      --color-heading: var(--color-syrup-brown);
-      --color-card-background: rgba(255, 255, 255, 0.6);
-      --color-subtle-background: rgba(255, 246, 229, 0.6);
-      --color-input-background: rgba(255, 255, 255, 0.8);
-      --color-border: rgba(107, 62, 38, 0.3);
-      --color-button-inactive-bg: #E5E7EB;
-      --color-button-inactive-text: var(--color-charcoal);
-
-      --font-body: 'Poppins', sans-serif;
-      --font-display: 'Pacifico', cursive;
+      --bg-primary: #FAF8F4; /* Creamy off-white */
+      --bg-secondary: #FFFFFF;
+      --text-primary: #3D2C24; /* Dark chocolate brown */
+      --text-secondary: #7C6C63;
+      --accent: #FFD43B; /* Butter yellow */
+      --accent-hover: #FFC900;
+      --border-color: #EDEAE6;
+      --shadow-color: rgba(61, 44, 36, 0.08);
+      --shadow-color-strong: rgba(61, 44, 36, 0.12);
+      --logo-waffle: #F3EADC;
+      --logo-butter: #FFD43B;
+      --code-bg: #FDFCFB;
+      --code-text: #5C4B44;
+      font-family: 'Poppins', sans-serif;
     }
-
     html.dark {
-      /* Semantic Variables (Dark) */
-      --color-background: #121828;
-      --color-text-primary: #E5E7EB;
-      --color-text-secondary: #9CA3AF;
-      --color-text-on-heading: #121828;
-      --color-heading: var(--color-butter-yellow);
-      --color-card-background: rgba(26, 32, 44, 0.6);
-      --color-subtle-background: rgba(30, 41, 59, 0.5);
-      --color-input-background: rgba(26, 32, 44, 0.8);
-      --color-border: rgba(255, 217, 125, 0.3);
-      --color-button-inactive-bg: #374151;
-      --color-button-inactive-text: var(--color-text-primary);
+      --bg-primary: #211A16;
+      --bg-secondary: #2C231E;
+      --text-primary: #E8E2DD;
+      --text-secondary: #9B8F88;
+      --accent: #FFD43B;
+      --accent-hover: #FFC900;
+      --border-color: #403630;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+      --shadow-color-strong: rgba(0, 0, 0, 0.15);
+      --logo-waffle: #52443C;
+      --logo-butter: #FFD43B;
+      --code-bg: #2C231E;
+      --code-text: #D8D2CD;
     }
-
     body {
-      background-color: var(--color-background);
-      color: var(--color-text-primary);
-      font-family: var(--font-body);
-      transition: background-color 0.3s ease, color 0.3s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    .fade-in {
-      animation: fadeIn 0.5s ease-in-out;
+    .animate-emerge { animation: emerge 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .animate-expandShadow { animation: expandShadow 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .animate-fadeIn-input { animation: fadeIn 0.2s 0.25s ease-out forwards; }
+    .animate-fadeIn-buttons { animation: fadeIn 0.2s 0.3s ease-out forwards; }
+
+    @keyframes emerge {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    @keyframes expandShadow {
+      from { box-shadow: 0 2px 8px var(--shadow-color); }
+      to { box-shadow: 0 4px 16px var(--shadow-color-strong); }
     }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
-    .json-key { color: var(--color-blueberry-purple); }
-    .json-string { color: var(--color-heading); }
-    .json-number { color: var(--color-strawberry-pink); }
-    .json-boolean { color: var(--color-strawberry-pink); }
-    .json-null { color: var(--color-text-secondary); }
-    
-    .typewriter-cursor {
-      display: inline-block;
-      width: 8px;
-      height: 1.2em;
-      background-color: var(--color-text-primary);
-      animation: blink 0.7s infinite;
-      margin-left: 2px;
-      vertical-align: bottom;
-    }
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
-    @keyframes pulse-mic {
-        0% {
-            box-shadow: 0 0 0 0 rgba(var(--color-strawberry-pink-rgb), 0.7);
-        }
-        70% {
-            box-shadow: 0 0 0 10px rgba(var(--color-strawberry-pink-rgb), 0);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(var(--color-strawberry-pink-rgb), 0);
-        }
-    }
-    .animate-pulse-mic {
-        animation: pulse-mic 2s infinite;
-    }
-    @keyframes active-bounce {
-      0%, 100% {
-        transform: translateY(0) scale(1);
-        animation-timing-function: ease-in-out;
-      }
-      50% {
-        transform: translateY(-6px) scale(1.1);
-        animation-timing-function: ease-in-out;
-      }
-    }
-    .animate-active-bounce {
-        animation: active-bounce 1.2s infinite;
-    }
-    @keyframes waveform {
-      0%, 100% {
-        transform: scaleY(0.4);
-      }
-      50% {
-        transform: scaleY(1);
-      }
-    }
-    .animate-waveform {
-      animation: waveform 1.2s ease-in-out infinite;
-    }
-    @keyframes jiggle {
-      0%, 100% { transform: rotate(0deg); }
-      25% { transform: rotate(5deg) scale(1.05); }
-      75% { transform: rotate(-5deg) scale(1.05); }
-    }
-    .animate-jiggle {
-      animation: jiggle 0.5s ease-in-out;
+    .wave-bar { animation: wave 1.2s infinite ease-in-out; }
+    @keyframes wave {
+      0%, 40%, 100% { transform: scaleY(0.4); }
+      20% { transform: scaleY(1.0); }
     }
   </style>
 </head>
 <body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
   <div id="root"></div>
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://aistudiocdn.com/react@^19.1.1",
-      "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-      "react/": "https://aistudiocdn.com/react@^19.1.1/",
-      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
-    }
-  }
-  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>

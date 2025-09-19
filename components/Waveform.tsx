@@ -1,13 +1,14 @@
-import React from 'react';
 
-export const Waveform: React.FC = () => {
-    return (
-        <div className="flex items-end justify-center gap-1 h-6 w-full" aria-hidden="true">
-            <span className="w-1 h-2 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ animationDelay: '-0.4s' }}></span>
-            <span className="w-1 h-4 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ animationDelay: '-0.2s' }}></span>
-            <span className="w-1 h-5 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ animationDelay: '0s' }}></span>
-            <span className="w-1 h-3 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ animationDelay: '-0.3s' }}></span>
-            <span className="w-1 h-4 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ animationDelay: '-0.1s' }}></span>
-        </div>
-    );
+const Waveform = () => {
+  return (
+    <div className="flex items-center justify-center space-x-1 h-6">
+      <div className="wave-bar bg-accent w-1 h-2 rounded-full" style={{ animationDelay: '0s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-4 rounded-full" style={{ animationDelay: '0.1s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-5 rounded-full" style={{ animationDelay: '0.2s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-3 rounded-full" style={{ animationDelay: '0.3s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-6 rounded-full" style={{ animationDelay: '0.4s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-4 rounded-full" style={{ animationDelay: '0.5s' }}></div>
+      <div className="wave-bar bg-accent w-1 h-2 rounded-full" style={{ animationDelay: '0.6s' }}></div>
+    </div>
+  );
 };

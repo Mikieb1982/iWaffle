@@ -1,30 +1,42 @@
 
-import React from 'react';
-
-export const LogoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg 
-    viewBox="0 0 64 64" 
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
+const LogoIcon = ({ isSmall = false }) => {
+  const size = isSmall ? 32 : 40;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="bg-bg-secondary rounded-full p-1 border-2 border-border-color"
     >
-    <g fill="currentColor">
-      {/* Waffle Body */}
-      <path d="M56,61H8a5,5,0,0,1-5-5V8A5,5,0,0,1,8,3H56a5,5,0,0,1,5,5V56A5,5,0,0,1,56,61Z" 
-        fill="#FFD97D" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" />
-
-      {/* Waffle Grid */}
-      <line x1="18" y1="3" x2="18" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-      <line x1="32" y1="3" x2="32" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-      <line x1="46" y1="3" x2="46" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-      <line x1="3" y1="18" x2="61" y2="18" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-      <line x1="3" y1="32" x2="61" y2="32" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-      <line x1="3" y1="46" x2="61" y2="46" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/>
-
-      {/* Thought Bubble */}
-      <path d="M48,15.5c7.2,0,13,5.8,13,13s-5.8,13-13,13H33c-3.9,0-7-3.1-7-7s3.1-7,7-7h18" 
-        fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" transform="translate(-10, -15)"/>
-      <circle cx="28" cy="30" r="3" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/>
-      <circle cx="23" cy="36" r="2" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/>
-    </g>
-  </svg>
-);
+      <rect width="40" height="40" rx="20" fill="var(--bg-secondary)" />
+      <g clipPath="url(#clip0_105_2)">
+        <rect x="7" y="7" width="26" height="26" rx="6" fill="var(--logo-waffle)" />
+        <path d="M7 17H33" stroke="var(--bg-secondary)" strokeOpacity="0.5" strokeWidth="2" />
+        <path d="M7 23H33" stroke="var(--bg-secondary)" strokeOpacity="0.5" strokeWidth="2" />
+        <path d="M17 7L17 33" stroke="var(--bg-secondary)" strokeOpacity="0.5" strokeWidth="2" />
+        <path d="M23 7L23 33" stroke="var(--bg-secondary)" strokeOpacity="0.5" strokeWidth="2" />
+        <path
+          d="M20.0002 26.5C22.3263 26.5 24.2502 24.5761 24.2502 22.25V22.25C24.2502 21.056 23.3163 20.0833 22.143 19.9925L17.8574 19.6742C16.6841 19.5833 15.7502 18.6096 15.7502 17.4167V17.4167C15.7502 15.0899 17.6741 13.166 20.0002 13.166"
+          stroke="var(--logo-butter)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <rect
+          x="16.5"
+          y="9.5"
+          width="7"
+          height="7"
+          rx="2"
+          fill="var(--logo-butter)"
+        />
+      </g>
+      <defs>
+        <clipPath id="clip0_105_2">
+          <rect x="7" y="7" width="26" height="26" rx="6" fill="white" />
+        </clipPath>
+      </defs>
+    </svg>
+  );
+};

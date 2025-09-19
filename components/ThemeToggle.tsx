@@ -1,29 +1,17 @@
-import React from 'react';
-import { SunIcon } from './icons/SunIcon';
-import { MoonIcon } from './icons/MoonIcon';
 
-interface ThemeToggleProps {
-  theme: 'light' | 'dark';
-  onToggle: () => void;
-}
-
-export const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => {
+const ThemeToggle = ({ theme, toggleTheme }) => {
   return (
     <button
-      onClick={onToggle}
-      className="p-2 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[--color-strawberry-pink]"
-      style={{ 
-        backgroundColor: 'var(--color-subtle-background)', 
-        color: 'var(--color-heading)',
-        '--ring-offset-color': 'var(--color-background)'
-      } as React.CSSProperties}
-      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      onClick={toggleTheme}
+      className="w-12 h-7 rounded-full bg-bg-secondary border border-border-color flex items-center p-1 transition-colors duration-300"
     >
-      {theme === 'light' ? (
-        <MoonIcon className="w-6 h-6" />
-      ) : (
-        <SunIcon className="w-6 h-6" />
-      )}
+      <div
+        className={`w-5 h-5 rounded-full bg-accent flex items-center justify-center transform transition-transform duration-300 ${
+          theme === 'dark' ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      >
+        {theme === 'light' ? <SunIcon /> : <MoonIcon />}
+      </div>
     </button>
   );
 };
