@@ -1,0 +1,4 @@
+import React from 'react';
+
+const MessageIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.494.033.99.06 1.482.082.526.023 1.053.035 1.58.044 1.131.019 2.26-.043 3.386-.131.994-.076 1.987-.22 2.953-.434 1.254-.28 2.403-.728 3.426-1.317A4.832 4.832 0 0021.75 12c0-1.854-.935-3.536-2.343-4.512-1.353-.91-3.01-1.5-4.816-1.83C13.566 5.561 12.28 5.5 11 5.5H9c-1.28 0-2.56.061-3.793.184A4.832 4.832 0 002.25 9.75c0 1.584.625 3.064 1.69 4.153.336.299.645.58.94.842.21.183.42.36.623.528z" /> </svg> );
+export default MessageIcon;

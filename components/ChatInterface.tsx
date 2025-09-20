@@ -1,0 +1,102 @@
+import React, { useState, useEffect, useRef, Fragment } from 'react';
+import type { InterviewLogItem } from '../types.ts';
+import Loader from './Loader.tsx';
+import Waveform from './Waveform.tsx';
+import SparklesIcon from './icons/SparklesIcon.tsx';
+import UserIcon from './icons/UserIcon.tsx';
+import MicrophoneIcon from './icons/MicrophoneIcon.tsx';
+
+interface ChatInterfaceProps {
+    isInterviewMode: boolean;
+    currentQuestion: string;
+    interviewLog: InterviewLogItem[];
+    isLoading: boolean;
+    onSubmit: (input: string) => void;
+}
+
+const useTypewriter = (text: string, speed = 30) => {
+    const [displayText, setDisplayText] = useState('');
+    useEffect(() => {
+        setDisplayText('');
+        if (text) {
+            let i = 0;
+            const typingInterval = setInterval(() => {
+                if (i < text.length) { setDisplayText(prev => prev + text.charAt(i)); i++; } 
+                else { clearInterval(typingInterval); }
+            }, speed);
+            return () => clearInterval(typingInterval);
+        }
+    }, [text, speed]);
+    return displayText;
+};
+
+const ChatInterface = ({ isInterviewMode, currentQuestion, interviewLog, isLoading, onSubmit }: ChatInterfaceProps) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [micError, setMicError] = useState('');
+  const recognitionRef = useRef<any>(null);
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const displayedQuestion = useTypewriter(currentQuestion);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) { setMicError("Voice not supported."); return; }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US';
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) { finalTranscript += event.results[i][0].transcript; }
+        else { interimTranscript += event.results[i][0].transcript; }
+      }
+      setInputValue(interviewLog.length > 0 ? (inputValue + finalTranscript) : (interimTranscript + finalTranscript));
+    };
+    recognition.onerror = (event: any) => { setMicError("Mic error."); setIsListening(false); };
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    return () => { recognitionRef.current?.abort(); };
+  }, [interviewLog, inputValue]);
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current || isLoading) return;
+    setMicError(''); 
+    if (isListening) { recognitionRef.current.stop(); } 
+    else { setInputValue(''); recognitionRef.current.start(); setIsListening(true); }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(inputValue); setInputValue(''); };
+  
+  useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayedQuestion, isLoading, interviewLog]);
+
+  return (
+    <div className="backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg border h-full flex flex-col min-h-[50vh] max-h-[70vh]" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)'}}>
+      <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+        {interviewLog.map((item, index) => (
+          <Fragment key={index}>
+            <div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)', color: 'var(--color-charcoal)'}}><p>{item.question}</p></div></div>
+            <div className="flex items-start gap-3 justify-end fade-in"><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-strawberry-pink)'}}><p className="text-white">{item.answer}</p></div><div className="p-2 rounded-full shadow-md" style={{backgroundColor: 'var(--color-subtle-background)'}}><UserIcon className="w-6 h-6" style={{ color: 'var(--color-text-secondary)'}} /></div></div>
+          </Fragment>
+        ))}
+        {displayedQuestion && !isLoading && (
+          <div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)', color: 'var(--color-charcoal)'}}><p>{displayedQuestion}<span className="typewriter-cursor"></span></p></div></div>
+        )}
+        {isLoading && (<div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)'}}><Loader /></div></div>)}
+        <div ref={endOfMessagesRef} />
+      </div>
+      <form onSubmit={handleSubmit} className="mt-auto pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="relative">
+          <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={isLoading ? "Waiting for the chef..." : isListening ? "" : (isInterviewMode ? "Type your answer..." : "Describe your prompt goal here...")} disabled={isLoading} className={`w-full p-4 pr-32 rounded-xl focus:ring-2 focus:ring-[--color-strawberry-pink] focus:outline-none resize-none shadow-inner border transition-all ${isListening ? 'pl-16' : ''}`} style={{ backgroundColor: 'var(--color-input-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }} rows={3}/>
+          {isListening && <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none w-12"><Waveform /></div>}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <button type="button" onClick={handleMicClick} disabled={isLoading || !recognitionRef.current} className={`p-2 rounded-full transform transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed ${isListening ? 'bg-[--color-strawberry-pink] text-white animate-pulse-mic' : 'bg-[var(--color-button-inactive-bg)] text-[var(--color-button-inactive-text)]'}`} aria-label={isListening ? 'Stop listening' : 'Start listening'}><MicrophoneIcon className="w-6 h-6" /></button>
+            <button type="submit" disabled={isLoading || !inputValue.trim()} className="font-bold py-2 px-6 rounded-lg transition-all duration-300 shadow disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5" style={{ backgroundColor: 'var(--color-strawberry-pink)', color: 'white', height: '48px' }}> Send </button>
+          </div>
+        </div>
+        {micError && <p className="text-xs text-red-500 text-center mt-2">{micError}</p>}
+      </form>
+    </div>
+  );
+};
+
+export default ChatInterface;
