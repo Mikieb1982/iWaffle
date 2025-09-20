@@ -123,89 +123,49 @@
 <body>
   <div id="root"></div>
   <script type="importmap">
-  {
-    "imports": {
-      "react": "https://aistudiocdn.com/react@^19.1.1",
-      "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-      "react/": "https://aistudiocdn.com/react@^19.1.1/",
-      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
-    }
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5"
   }
-  </script>
+}
+</script>
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, Fragment } from 'react';
     import ReactDOM from 'react-dom/client';
-    import { GoogleGenAI, Type } from "@google/genai";
 
     //======= SERVICES =======//
 
-    if (!process.env.API_KEY) {
-      console.warn("API_KEY environment variable is not set. The application will not function without it.");
-    }
-    
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    const simplePromptSchema = {
-        type: Type.OBJECT,
-        properties: {
-            final_prompt: { type: Type.STRING, description: "The final, detailed, and expertly crafted system prompt." },
-            best_practices_summary: { type: Type.STRING, description: "A summary of the prompt engineering best practices applied." },
-        },
-        required: ["final_prompt", "best_practices_summary"]
-    };
-    
-    const interviewSchema = {
-        type: Type.OBJECT,
-        properties: {
-            next_question: { type: Type.STRING, description: "The single, most important clarifying question to ask the user." },
-            final_prompt: { type: Type.STRING, description: "The final, detailed prompt. Only provide when the interview is complete." },
-            best_practices_summary: { type: Type.STRING, description: "A summary of best practices. Only provide with the final prompt." }
-        }
-    };
-    
-    const generatePrompt = async (userGoal, targetAI) => {
+    const callApi = async (mode, payload) => {
         try {
-            const systemInstruction = `You are a world-class 'prompt chef' at iWaffle, an expert in crafting high-quality system prompts for large language models. Your task is to take a user's goal and immediately generate the most detailed and effective prompt possible, specifically optimized for ${targetAI}. Do not ask clarifying questions. Anticipate the user's needs. Your response must be a single JSON object conforming to the provided schema.`;
-    
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: `User's Goal: "${userGoal}"`,
-                config: { systemInstruction, responseMimeType: 'application/json', responseSchema: simplePromptSchema }
+            const response = await fetch('/.netlify/functions/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode, payload }),
             });
-    
-            const result = JSON.parse(response.text);
-            return { type: 'success', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, metadata: { date: new Date().toISOString(), description: userGoal } } };
-    
-        } catch (error) {
-            console.error("Error in generatePrompt:", error);
-            return { type: 'error', content: { error: true, message: "The prompt chef had trouble with this recipe.", suggestions: ["Try rephrasing your goal to be more specific.", "Ensure your goal is clearly stated."] } };
-        }
-    };
-    
-    const startOrContinueInterview = async (interviewLog, targetAI) => {
-        try {
-            const systemInstruction = `You are a 'prompt chef' at iWaffle. Your goal is to help a user build a detailed prompt by conducting a brief, interactive interview (2-3 questions max). Analyze the user's initial goal and the conversation history. If you have enough information to create a stellar prompt for ${targetAI}, generate the 'final_prompt' and 'best_practices_summary'. Otherwise, ask the single most important 'next_question'. Your response must be a single JSON object.`;
-            const history = interviewLog.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n');
-            const userGoal = interviewLog[0]?.answer || "N/A";
-    
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: `**Initial User Goal:**\n${userGoal}\n\n**Conversation History:**\n${history}\n\nBased on this, what is the next step?`,
-                config: { systemInstruction, responseMimeType: 'application/json', responseSchema: interviewSchema }
-            });
-    
-            const result = JSON.parse(response.text);
-    
-            if (result.final_prompt && result.best_practices_summary) {
-                return { type: 'final', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, interview_log: interviewLog, metadata: { date: new Date().toISOString(), description: userGoal } } };
-            } else if (result.next_question) {
-                return { type: 'question', question: result.next_question };
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                console.error("API error response:", result);
+                return result.content ? { type: 'error', content: result.content } : { type: 'error', content: { error: true, message: "An unexpected error occurred on the server." } };
             }
-            throw new Error("Model returned an invalid interview response.");
+            return result;
         } catch (error) {
-            console.error("Error in startOrContinueInterview:", error);
-            return { type: 'error', content: { error: true, message: "The prompt chef got confused during the conversation.", suggestions: ["Try rephrasing your last answer.", "Consider restarting the session."] } };
+            console.error(`Error calling API for mode ${mode}:`, error);
+            return { type: 'error', content: { error: true, message: "Could not connect to the server.", suggestions: ["Check your internet connection.", "Try again in a few moments."] } };
         }
+    };
+
+    const generatePrompt = async (userGoal, targetAI) => {
+        return callApi('simple', { userGoal, targetAI });
+    };
+
+    const startOrContinueInterview = async (interviewLog, targetAI) => {
+        return callApi('interview', { interviewLog, targetAI });
     };
 
     //======= ICON COMPONENTS =======//
@@ -390,6 +350,7 @@
       const [isListening, setIsListening] = useState(false);
       const [micError, setMicError] = useState('');
       const recognitionRef = useRef(null);
+      const textBeforeSpeechRef = useRef('');
       const endOfMessagesRef = useRef(null);
       const displayedQuestion = useTypewriter(currentQuestion);
     
@@ -397,27 +358,35 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) { setMicError("Voice not supported."); return; }
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
         recognition.onresult = (event) => {
-          let finalTranscript = '';
-          let interimTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) { finalTranscript += event.results[i][0].transcript; }
-            else { interimTranscript += event.results[i][0].transcript; }
-          }
-          setInputValue(interviewLog.length > 0 ? (inputValue + finalTranscript) : (interimTranscript + finalTranscript));
+            let transcript = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            const separator = textBeforeSpeechRef.current.trim() ? ' ' : '';
+            setInputValue(textBeforeSpeechRef.current + separator + transcript);
         };
+
         recognition.onerror = (event) => { setMicError("Mic error."); setIsListening(false); };
         recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
         return () => { recognitionRef.current?.abort(); };
-      }, [interviewLog]);
+      }, []);
     
       const handleMicClick = () => {
         if (!recognitionRef.current || isLoading) return;
         setMicError(''); 
-        if (isListening) { recognitionRef.current.stop(); } 
-        else { setInputValue(''); recognitionRef.current.start(); setIsListening(true); }
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            textBeforeSpeechRef.current = inputValue;
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
       };
     
       const handleSubmit = (e) => { e.preventDefault(); onSubmit(inputValue); setInputValue(''); };
@@ -441,7 +410,7 @@
           </div>
           <form onSubmit={handleSubmit} className="mt-auto pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
             <div className="relative">
-              <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={isLoading ? "Waiting for the chef..." : isListening ? "" : (isInterviewMode ? "Type your answer..." : "Describe your prompt goal here...")} disabled={isLoading} className={`w-full p-4 pr-32 rounded-xl focus:ring-2 focus:ring-[--color-strawberry-pink] focus:outline-none resize-none shadow-inner border transition-all ${isListening ? 'pl-16' : ''}`} style={{ backgroundColor: 'var(--color-input-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }} rows={3}/>
+              <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={isLoading ? "Waiting for the chef..." : isListening ? "Listening... click mic to stop" : (isInterviewMode ? "Type your answer..." : "Describe your prompt goal here...")} disabled={isLoading} className={`w-full p-4 pr-32 rounded-xl focus:ring-2 focus:ring-[--color-strawberry-pink] focus:outline-none resize-none shadow-inner border transition-all ${isListening ? 'pl-16' : ''}`} style={{ backgroundColor: 'var(--color-input-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }} rows={3}/>
               {isListening && <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none w-12"><Waveform /></div>}
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button type="button" onClick={handleMicClick} disabled={isLoading || !recognitionRef.current} className={`p-2 rounded-full transform transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed ${isListening ? 'bg-[--color-strawberry-pink] text-white animate-pulse-mic' : 'bg-[var(--color-button-inactive-bg)] text-[var(--color-button-inactive-text)]'}`} aria-label={isListening ? 'Stop listening' : 'Start listening'}><MicrophoneIcon className="w-6 h-6" /></button>
@@ -554,8 +523,12 @@
     
         if (mode === 'simple') {
           const result = await generatePrompt(userInput, targetAI);
-          setAppOutput(result.content);
-          setView('result');
+          if (result.type === 'error') {
+            setAppOutput(result.content);
+          } else {
+            setAppOutput(result.content);
+            setView('result');
+          }
         } else {
           const newLogItem = { question: currentQuestion, answer: userInput };
           const updatedLog = [...interviewLog, newLogItem];
@@ -564,6 +537,8 @@
           const result = await startOrContinueInterview(updatedLog, targetAI);
           if (result.type === 'question') {
             setCurrentQuestion(result.question);
+          } else if (result.type === 'error') {
+            setAppOutput(result.content);
           } else {
             setAppOutput(result.content);
             setView('result');
