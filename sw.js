@@ -1,6 +1,6 @@
-const CACHE_NAME = 'iwaffle-v3';
+const CACHE_NAME = 'iwaffle-v7';
 const urlsToCache = [
-  '/',
+  '.',
   'index.html',
   'manifest.json',
   'https://i.imgur.com/d3TFFJr.png'

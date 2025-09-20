@@ -7,6 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" id="theme-color-meta" content="#FFFBF0">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -326,10 +327,7 @@
         const [micError, setMicError] = useState('');
         const recognitionRef = useRef(null);
         const interimRef = useRef('');
-        
-        // Using a ref for isListening to avoid stale closures in recognition event handlers
-        const isListeningRef = useRef(isListening);
-        isListeningRef.current = isListening;
+        const intentToListenRef = useRef(false);
         
         useEffect(() => {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -344,6 +342,10 @@
             recognition.lang = 'en-US';
 
             recognitionRef.current = recognition;
+
+            recognition.onstart = () => {
+                setIsListening(true);
+            };
 
             recognition.onresult = (event) => {
                 let final_transcript_part = '';
@@ -369,52 +371,69 @@
 
             recognition.onerror = (event) => {
                 setMicError(`Mic error: ${event.error}`);
-                if (isListeningRef.current) {
-                    setIsListening(false);
-                }
+                intentToListenRef.current = false;
             };
 
             recognition.onend = () => {
+                setIsListening(false);
                 interimRef.current = '';
-                // If recognition stops but we are still in "listening mode" (e.g., due to a pause), restart it.
-                if (isListeningRef.current) {
+                if (intentToListenRef.current) {
                     try {
                         recognitionRef.current.start();
                     } catch (err) {
                         console.error("Error restarting speech recognition:", err);
-                        setIsListening(false); // Can't restart, so update state to reflect that
+                        intentToListenRef.current = false;
                     }
                 }
             };
 
             return () => {
+                intentToListenRef.current = false;
                 recognitionRef.current?.abort();
             };
-        }, []); // Empty dependency array ensures this runs only once.
+        }, []);
         
-        const handleMicClick = () => {
-            if (!recognitionRef.current || isLoading) return;
+        const handleMicClick = useCallback(() => {
+            if (isLoading || !recognitionRef.current) return;
             setMicError('');
-            const currentlyListening = isListening;
-            
-            setIsListening(!currentlyListening);
 
-            if (!currentlyListening) {
+            if (isListening) {
+                intentToListenRef.current = false;
+                recognitionRef.current.stop();
+            } else {
                 setInputValue(prev => prev.trim() ? prev.trim() + ' ' : '');
+                intentToListenRef.current = true;
                 try {
                     recognitionRef.current.start();
-                } catch(e) {
+                } catch (e) {
                     console.error("Error starting recognition:", e);
                     setMicError("Could not start microphone.");
-                    setIsListening(false); // Revert state if start fails
+                    intentToListenRef.current = false;
                 }
-            } else {
-                recognitionRef.current.stop();
             }
-        };
+        }, [isLoading, isListening]);
         
         const handleSubmit = (e) => { e.preventDefault(); onSubmit(inputValue); setInputValue(''); };
-    
+
+        useEffect(() => {
+            const handleKeyDown = (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    switch (e.key.toLowerCase()) {
+                        case 'm':
+                            e.preventDefault();
+                            handleMicClick();
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            onReset();
+                            break;
+                    }
+                }
+            };
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }, [handleMicClick, onReset]);
+
       return (
         <div className="backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg border flex flex-col flex-grow fade-in" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)'}}>
             <div className="flex justify-between items-center mb-4">
@@ -435,7 +454,7 @@
                 <textarea 
                     value={inputValue} 
                     onChange={(e) => setInputValue(e.target.value)} 
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} 
+                    onKeyDown={(e) => { if (e.key === 'Enter' && (!e.shiftKey || e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSubmit(e); } }} 
                     placeholder={isLoading ? "The chef is thinking..." : isListening ? "Listening..." : "I want to create an app that helps people find the best waffle toppings..."} 
                     disabled={isLoading} 
                     className={`w-full p-4 pr-32 rounded-xl focus:ring-2 focus:ring-[--color-strawberry-pink] focus:outline-none resize-none shadow-inner border transition-all duration-300 ${isListening ? 'pl-16 ring-2 ring-offset-2 ring-offset-[--color-input-background] ring-[--color-strawberry-pink]' : ''}`} 
@@ -489,10 +508,85 @@
       </div>
     );
     
+    //======= LEGAL PAGE COMPONENTS =======//
+    const LegalPage = ({ title, children, onBack }) => (
+        <div className="fade-in space-y-6 p-4 sm:p-8 rounded-2xl shadow-lg border" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)' }}>
+            <div className="flex justify-between items-center pb-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <h2 className="text-2xl font-bold" style={{ color: 'var(--color-heading)' }}>{title}</h2>
+                <button onClick={onBack} className="font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 bg-[--color-subtle-background] hover:bg-[--color-border]">
+                    Go Back
+                </button>
+            </div>
+            <div className="prose dark:prose-invert max-w-none text-sm" style={{ color: 'var(--color-text-primary)'}}>
+                {children}
+            </div>
+        </div>
+    );
+
+    const Impressum = ({ onBack }) => (
+        <LegalPage title="Impressum (Imprint)" onBack={onBack}>
+            <h3 className="font-bold">Angaben gemäß § 5 TMG</h3>
+            <p className="p-2 rounded bg-yellow-200 dark:bg-yellow-800 border border-yellow-400">
+                <strong>IMPORTANT:</strong> Please replace the placeholder text below with your own information.
+            </p>
+            <p className="font-semibold">Angsthase Digital Studio</p>
+            <p>[Your Street and Number]</p>
+            <p>[Your Postal Code and City]</p>
+            <p>[Country]</p>
+            
+            <h3 className="font-bold mt-4">Vertreten durch (Represented by):</h3>
+            <p>Angsthase Digital Studio</p>
+            
+            <h3 className="font-bold mt-4">Kontakt (Contact):</h3>
+            <p>Telefon: [Your Phone Number]</p>
+            <p>E-Mail: [Your Email Address]</p>
+            
+            <h3 className="font-bold mt-4">Umsatzsteuer-ID (VAT ID):</h3>
+            <p>Umsatzsteuer-Identifikationsnummer gemäß §27a Umsatzsteuergesetz: [Your VAT ID, if applicable]</p>
+            
+            <h3 className="font-bold mt-4">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV (Responsible for content):</h3>
+            <p>[Your Name]</p>
+            <p>[Your Address]</p>
+        </LegalPage>
+    );
+
+    const PrivacyPolicy = ({ onBack }) => (
+        <LegalPage title="Datenschutzerklärung (Privacy Policy)" onBack={onBack}>
+            <p className="p-2 rounded bg-yellow-200 dark:bg-yellow-800 border border-yellow-400">
+                <strong>IMPORTANT:</strong> This is a template. Please review and adapt it to your specific data processing activities and consult a legal professional if necessary.
+            </p>
+            <p>Last updated: [Date]</p>
+            
+            <h3 className="font-bold mt-4">1. Data Controller</h3>
+            <p>The responsible party for data processing in this app is:</p>
+            <p>Angsthase Digital Studio<br/>[Your Address]<br/>[Your Email Address]</p>
+            
+            <h3 className="font-bold mt-4">2. Data Processing</h3>
+            <p>We process your data for the following purposes:</p>
+            <ul>
+                <li><strong>Providing Core Functionality:</strong> The text and voice input you provide ("waffle") is processed to generate a prompt. This data is sent to the Google Gemini API for this purpose. We do not store this input on our servers. Please refer to Google's privacy policy for information on how they handle data.</li>
+                <li><strong>Saving Preferences:</strong> We use your browser's local storage to save your theme preference (light/dark mode). This data remains on your device and is not transmitted.</li>
+                <li><strong>Speech Recognition:</strong> If you use the microphone feature, your browser's built-in speech recognition service will process your voice. This is subject to the privacy policy of your browser vendor (e.g., Google Chrome, Apple Safari).</li>
+            </ul>
+            
+            <h3 className="font-bold mt-4">3. Your Rights</h3>
+            <p>As a user, you have the following rights under the GDPR (DSGVO):</p>
+            <ul>
+                <li>Right of access (Art. 15)</li>
+                <li>Right to rectification (Art. 16)</li>
+                <li>Right to erasure ('right to be forgotten') (Art. 17)</li>
+                <li>Right to restriction of processing (Art. 18)</li>
+                <li>Right to data portability (Art. 20)</li>
+                <li>Right to object (Art. 21)</li>
+            </ul>
+            <p>To exercise these rights, please contact us at the address mentioned above.</p>
+        </LegalPage>
+    );
+    
     //======= MAIN APP COMPONENT =======//
     function App() {
       const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-      const [view, setView] = useState('welcome'); // welcome, composer, result
+      const [activeView, setActiveView] = useState('welcome'); // welcome, composer, result, privacy, impressum
       const [targetAI, setTargetAI] = useState('Gemini AI');
       const [isLoading, setIsLoading] = useState(false);
       const [appOutput, setAppOutput] = useState(null);
@@ -501,7 +595,10 @@
       useEffect(() => {
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').then(registration => {
+            // Register with a relative path. The browser will resolve it
+            // relative to the document's location, which works for both
+            // root and subdirectory deployments (like GitHub Pages).
+            navigator.serviceWorker.register('./sw.js').then(registration => {
               console.log('SW registered: ', registration);
             }).catch(registrationError => {
               console.log('SW registration failed: ', registrationError);
@@ -520,27 +617,27 @@
       }, [theme]);
       
       useEffect(() => {
-        if (isLoading || view === 'result') { setLogoAnimationKey(prev => prev + 1); }
-      }, [isLoading, view]);
+        if (isLoading || activeView === 'result') { setLogoAnimationKey(prev => prev + 1); }
+      }, [isLoading, activeView]);
     
       const handleThemeToggle = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
     
       const handleReset = () => {
         setAppOutput(null);
         setIsLoading(false);
-        setView('welcome');
+        setActiveView('welcome');
       };
       
       const handleStart = (config) => {
         setTargetAI(config.targetAI);
-        setView('composer');
+        setActiveView('composer');
       };
 
       const handleComposeSubmit = async (userInput) => {
         if (!userInput.trim()) return;
         setIsLoading(true);
         setAppOutput(null);
-        setView('result'); // Switch view immediately to show the loader in the result view
+        setActiveView('result');
     
         const result = await generatePrompt(userInput, targetAI);
         
@@ -553,7 +650,7 @@
             return <ErrorDisplay data={appOutput} onReset={handleReset} />;
         }
 
-        switch (view) {
+        switch (activeView) {
             case 'welcome': return <WelcomeScreen onStart={handleStart} />;
             case 'composer': return <PromptComposer isLoading={isLoading} onSubmit={handleComposeSubmit} onReset={handleReset} />;
             case 'result':
@@ -568,6 +665,8 @@
                     );
                 }
                 return appOutput ? <ResultCard data={appOutput} onReset={handleReset} /> : <div className="flex-grow flex items-center justify-center"><Loader/></div>;
+            case 'privacy': return <PrivacyPolicy onBack={() => setActiveView('welcome')} />;
+            case 'impressum': return <Impressum onBack={() => setActiveView('welcome')} />;
             default: return <WelcomeScreen onStart={handleStart} />;
         }
       };
@@ -585,6 +684,15 @@
           <main className="py-8 px-4 md:px-8 max-w-4xl mx-auto w-full flex-grow flex flex-col">
             {renderContent()}
           </main>
+
+          <footer className="text-center py-4 px-4 text-xs" style={{ color: 'var(--color-text-secondary)'}}>
+            <p>&copy; 2024 iWaffle. All Rights Reserved.</p>
+            <div className="mt-1">
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveView('impressum'); }} className="underline hover:text-[--color-text-primary] mx-2">Impressum / Imprint</a>
+                <span className="opacity-50">|</span>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveView('privacy'); }} className="underline hover:text-[--color-text-primary] mx-2">Privacy Policy</a>
+            </div>
+          </footer>
         </div>
       );
     }
