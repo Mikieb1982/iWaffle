@@ -131,49 +131,37 @@
     "imports": {
       "react": "https://aistudiocdn.com/react@^19.1.1",
       "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-      "react/": "https://aistudiocdn.com/react@^19.1.1/",
-      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+      "react/": "https://aistudiocdn.com/react@^19.1.1/"
     }
   }
   </script>
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef, Fragment, useCallback } from 'react';
+    import React, { useState, useEffect, useRef, Fragment, useCallback, useMemo } from 'react';
     import ReactDOM from 'react-dom/client';
-    import { GoogleGenAI, Type } from "@google/genai";
 
     //======= SERVICES =======//
-
-    if (!process.env.API_KEY) {
-      console.warn("API_KEY environment variable is not set. The application will not function without it.");
-    }
-    
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    const promptSchema = {
-        type: Type.OBJECT,
-        properties: {
-            final_prompt: { type: Type.STRING, description: "The final, detailed, and expertly crafted system prompt." },
-            best_practices_summary: { type: Type.STRING, description: "A summary of the prompt engineering best practices applied." },
-        },
-        required: ["final_prompt", "best_practices_summary"]
-    };
     
     const generatePrompt = async (userWaffle, targetAI) => {
         try {
-            const systemInstruction = `You are a world-class 'prompt chef' at iWaffle, an expert in crafting high-quality system prompts for large language models. Your unique skill is interpreting rambling, imprecise, and conversational user input – what we call "waffling". Your task is to take a user's raw, unstructured thoughts and distill them into a detailed, effective, and professional prompt, specifically optimized for the target AI: ${targetAI}. Do not ask for clarification. Analyze the user's "waffle" to understand their core intent, the desired tone, format, and any underlying constraints. Your response must be a single JSON object conforming to the provided schema, containing the final prompt and a summary of the best practices you applied.`;
-    
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: `User's Waffle: "${userWaffle}"`,
-                config: { systemInstruction, responseMimeType: 'application/json', responseSchema: promptSchema }
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userWaffle, targetAI })
             });
-    
-            const result = JSON.parse(response.text);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'The prompt chef had a problem with the recipe.');
+            }
+
+            const result = await response.json();
+
             return { type: 'success', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, metadata: { date: new Date().toISOString(), description: userWaffle } } };
-    
+
         } catch (error) {
-            console.error("Error in generatePrompt:", error);
-            return { type: 'error', content: { error: true, message: "The prompt chef had trouble with this recipe.", suggestions: ["Try rephrasing your goal to be more specific.", "Ensure your goal is clearly stated."] } };
+            console.error("Error calling generation service:", error);
+            const errorMessage = error.message || "The prompt chef had trouble connecting to the kitchen.";
+            return { type: 'error', content: { error: true, message: errorMessage, suggestions: ["Try rephrasing your goal.", "There might be a network issue connecting to the server."] } };
         }
     };
 
@@ -567,7 +555,7 @@
             <h3 className="font-bold mt-4">2. Data Processing</h3>
             <p>We process your data for the following purposes:</p>
             <ul>
-                <li><strong>Providing Core Functionality:</strong> The text and voice input you provide ("waffle") is processed to generate a prompt. This data is sent to the Google Gemini API for this purpose. We do not store this input on our servers. Please refer to Google's privacy policy for information on how they handle data.</li>
+                <li><strong>API Calls via Proxy:</strong> Your text and voice input ("waffle") is sent to our secure server-side function, which then forwards it to the Google Gemini API. We do not store your input. Please refer to Google's privacy policy for information on how they handle data.</li>
                 <li><strong>Saving Preferences:</strong> We use your browser's local storage to save your theme preference (light/dark mode). This data remains on your device and is not transmitted.</li>
                 <li><strong>Speech Recognition:</strong> If you use the microphone feature, your browser's built-in speech recognition service will process your voice. This is subject to the privacy policy of your browser vendor (e.g., Google Chrome, Apple Safari).</li>
             </ul>
@@ -582,7 +570,7 @@
                 <li>Right to data portability (Art. 20)</li>
                 <li>Right to object (Art. 21)</li>
             </ul>
-            <p>To exercise these rights, please contact us at the address mentioned above.</p>
+            <p>To exercise these rights, please contact us at the address mentioned above. You can delete your stored theme settings at any time by clearing your browser's site data for this page.</p>
         </LegalPage>
     );
     
@@ -721,7 +709,7 @@
             <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
           </header>
     
-          <main className="py-8 px-4 md:px-8 max-w-4xl mx-auto w-full flex-grow flex flex-col">
+          <main className="py-8 px-4 md:px-8 max-w-4xl mx-auto w-full flex-grow flex flex-col justify-center">
             {renderContent()}
           </main>
 
