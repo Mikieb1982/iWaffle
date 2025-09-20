@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iwaffle-v9';
+const CACHE_NAME = 'iwaffle-v10';
 const urlsToCache = [
   './',
   './index.html',
@@ -18,8 +18,10 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const requestUrl = new URL(event.request.url);
+
   // Ignore non-GET requests and API calls to Google
-  if (event.request.method !== 'GET' || event.request.url.includes('googleapis.com')) {
+  if (event.request.method !== 'GET' || requestUrl.hostname.endsWith('googleapis.com')) {
     // Let the browser handle it, which means a standard network request
     return;
   }
