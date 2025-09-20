@@ -150,18 +150,38 @@
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'The prompt chef had a problem with the recipe.');
+                const errorText = await response.text();
+                let errorMessage = 'The prompt chef had a problem with the recipe.';
+                try {
+                    // Try to parse as JSON, but don't fail if it's not
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    // The error response wasn't JSON. The text itself might be the error.
+                    if (errorText) errorMessage = errorText;
+                }
+                throw new Error(errorMessage);
             }
 
-            const result = await response.json();
+            // Get the response as text first to check if it's empty
+            const responseText = await response.text();
+            if (!responseText) {
+                throw new Error("The chef received an empty response. This can happen if the content is blocked by safety filters. Please try rephrasing your idea.");
+            }
+
+            // Now that we know it's not empty, parse it
+            const result = JSON.parse(responseText);
 
             return { type: 'success', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, metadata: { date: new Date().toISOString(), description: userWaffle } } };
 
         } catch (error) {
             console.error("Error calling generation service:", error);
             const errorMessage = error.message || "The prompt chef had trouble connecting to the kitchen.";
-            return { type: 'error', content: { error: true, message: errorMessage, suggestions: ["Try rephrasing your goal.", "There might be a network issue connecting to the server."] } };
+            const suggestions = errorMessage.includes("safety filters")
+                ? ["Try phrasing your idea differently.", "Avoid potentially sensitive topics."]
+                : ["Try rephrasing your goal.", "There might be a network issue connecting to the server."];
+                
+            return { type: 'error', content: { error: true, message: errorMessage, suggestions: suggestions } };
         }
     };
 
