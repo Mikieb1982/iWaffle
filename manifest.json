@@ -8,7 +8,6 @@
   "theme_color": "#FFD97D",
   "orientation": "portrait-primary",
   "scope": ".",
-  "id": "/",
   "icons": [
     {
       "src": "https://i.imgur.com/d3TFFJr.png",
@@ -62,7 +61,7 @@
       "name": "Start Waffling",
       "short_name": "Waffle",
       "description": "Jump right in and start creating a new prompt",
-      "url": "/",
+      "url": ".",
       "icons": [{ "src": "https://i.imgur.com/d3TFFJr.png", "sizes": "96x96" }]
     }
   ],
