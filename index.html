@@ -2,12 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>iWaffle</title>
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" id="theme-color-meta" content="#FFFBF0">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,10 +12,10 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script>
     // Set theme on initial load to prevent FOUC (Flash of Unstyled Content)
-    if (localStorage.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
+    if (localStorage.theme === 'light') {
       document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
     }
   </script>
   <style>
@@ -132,10 +128,484 @@
       "react": "https://aistudiocdn.com/react@^19.1.1",
       "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
       "react/": "https://aistudiocdn.com/react@^19.1.1/",
-      "@google/genai": "https://aistudiocdn.com/google-genai-latest.mjs"
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
     }
   }
   </script>
-  <script type="text/babel" data-type="module" src="./index.tsx"></script>
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useRef, Fragment } from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { GoogleGenAI, Type } from "@google/genai";
+
+    //======= SERVICES =======//
+
+    if (!process.env.API_KEY) {
+      console.warn("API_KEY environment variable is not set. The application will not function without it.");
+    }
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    const simplePromptSchema = {
+        type: Type.OBJECT,
+        properties: {
+            final_prompt: { type: Type.STRING, description: "The final, detailed, and expertly crafted system prompt." },
+            best_practices_summary: { type: Type.STRING, description: "A summary of the prompt engineering best practices applied." },
+        },
+        required: ["final_prompt", "best_practices_summary"]
+    };
+    
+    const interviewSchema = {
+        type: Type.OBJECT,
+        properties: {
+            next_question: { type: Type.STRING, description: "The single, most important clarifying question to ask the user." },
+            final_prompt: { type: Type.STRING, description: "The final, detailed prompt. Only provide when the interview is complete." },
+            best_practices_summary: { type: Type.STRING, description: "A summary of best practices. Only provide with the final prompt." }
+        }
+    };
+    
+    const generatePrompt = async (userGoal, targetAI) => {
+        try {
+            const systemInstruction = `You are a world-class 'prompt chef' at iWaffle, an expert in crafting high-quality system prompts for large language models. Your task is to take a user's goal and immediately generate the most detailed and effective prompt possible, specifically optimized for ${targetAI}. Do not ask clarifying questions. Anticipate the user's needs. Your response must be a single JSON object conforming to the provided schema.`;
+    
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `User's Goal: "${userGoal}"`,
+                config: { systemInstruction, responseMimeType: 'application/json', responseSchema: simplePromptSchema }
+            });
+    
+            const result = JSON.parse(response.text);
+            return { type: 'success', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, metadata: { date: new Date().toISOString(), description: userGoal } } };
+    
+        } catch (error) {
+            console.error("Error in generatePrompt:", error);
+            return { type: 'error', content: { error: true, message: "The prompt chef had trouble with this recipe.", suggestions: ["Try rephrasing your goal to be more specific.", "Ensure your goal is clearly stated."] } };
+        }
+    };
+    
+    const startOrContinueInterview = async (interviewLog, targetAI) => {
+        try {
+            const systemInstruction = `You are a 'prompt chef' at iWaffle. Your goal is to help a user build a detailed prompt by conducting a brief, interactive interview (2-3 questions max). Analyze the user's initial goal and the conversation history. If you have enough information to create a stellar prompt for ${targetAI}, generate the 'final_prompt' and 'best_practices_summary'. Otherwise, ask the single most important 'next_question'. Your response must be a single JSON object.`;
+            const history = interviewLog.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n');
+            const userGoal = interviewLog[0]?.answer || "N/A";
+    
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `**Initial User Goal:**\n${userGoal}\n\n**Conversation History:**\n${history}\n\nBased on this, what is the next step?`,
+                config: { systemInstruction, responseMimeType: 'application/json', responseSchema: interviewSchema }
+            });
+    
+            const result = JSON.parse(response.text);
+    
+            if (result.final_prompt && result.best_practices_summary) {
+                return { type: 'final', content: { prompt: result.final_prompt, best_practices_summary: result.best_practices_summary, targetAI, interview_log: interviewLog, metadata: { date: new Date().toISOString(), description: userGoal } } };
+            } else if (result.next_question) {
+                return { type: 'question', question: result.next_question };
+            }
+            throw new Error("Model returned an invalid interview response.");
+        } catch (error) {
+            console.error("Error in startOrContinueInterview:", error);
+            return { type: 'error', content: { error: true, message: "The prompt chef got confused during the conversation.", suggestions: ["Try rephrasing your last answer.", "Consider restarting the session."] } };
+        }
+    };
+
+    //======= ICON COMPONENTS =======//
+    const LogoIcon = (props) => ( <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" {...props}> <g fill="currentColor"> <path d="M56,61H8a5,5,0,0,1-5-5V8A5,5,0,0,1,8,3H56a5,5,0,0,1,5,5V56A5,5,0,0,1,56,61Z" fill="#FFD97D" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" /> <line x1="18" y1="3" x2="18" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <line x1="32" y1="3" x2="32" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <line x1="46" y1="3" x2="46" y2="61" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <line x1="3" y1="18" x2="61" y2="18" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <line x1="3" y1="32" x2="61" y2="32" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <line x1="3" y1="46" x2="61" y2="46" stroke="#6B3E26" strokeWidth="4" strokeLinecap="round" opacity="0.2"/> <path d="M48,15.5c7.2,0,13,5.8,13,13s-5.8,13-13,13H33c-3.9,0-7-3.1-7-7s3.1-7,7-7h18" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" transform="translate(-10, -15)"/> <circle cx="28" cy="30" r="3" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/> <circle cx="23" cy="36" r="2" fill="#FFFFFF" stroke="#6B3E26" strokeWidth="4" transform="translate(-10, -15)"/> </g> </svg> );
+    const MessageIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.494.033.99.06 1.482.082.526.023 1.053.035 1.58.044 1.131.019 2.26-.043 3.386-.131.994-.076 1.987-.22 2.953-.434 1.254-.28 2.403-.728 3.426-1.317A4.832 4.832 0 0021.75 12c0-1.854-.935-3.536-2.343-4.512-1.353-.91-3.01-1.5-4.816-1.83C13.566 5.561 12.28 5.5 11 5.5H9c-1.28 0-2.56.061-3.793.184A4.832 4.832 0 002.25 9.75c0 1.584.625 3.064 1.69 4.153.336.299.645.58.94.842.21.183.42.36.623.528z" /> </svg> );
+    const MicrophoneIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /> <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 01-14 0v-2" /> <path strokeLinecap="round" strokeLinejoin="round" d="M12 19v3" /> </svg> );
+    const MoonIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /> </svg> );
+    const SparklesIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.553L16.5 21.75l-.398-1.197a3.375 3.375 0 00-2.456-2.456L12.75 18l1.197-.398a3.375 3.375 0 002.456-2.456L16.5 14.25l.398 1.197a3.375 3.375 0 002.456 2.456l1.197.398-1.197.398a3.375 3.375 0 00-2.456 2.456z" /> </svg> );
+    const SunIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /> </svg> );
+    const TrashIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.033-2.134H8.71c-1.123 0-2.033.954-2.033 2.134v.916m7.5 0a48.667 48.667 0 00-7.5 0" /> </svg> );
+    const UserIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /> </svg> );
+    const DownloadIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg> );
+
+    //======= UI COMPONENTS =======//
+    const ActionButton = ({ textToCopy, dataToDownload, className }) => {
+        const [copied, setCopied] = useState(false);
+        
+        const handleCopy = () => {
+            if (!textToCopy) return;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            });
+        };
+
+        const handleDownload = () => {
+            const jsonString = JSON.stringify(dataToDownload, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `iwaffle-prompt-${date}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        const CopyIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>);
+        const CheckIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>);
+
+        return (
+            <div className={`flex items-center gap-2 ${className}`}>
+                 <button onClick={handleDownload} className="flex items-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 bg-gray-500 text-white">
+                    <DownloadIcon className="w-5 h-5" /> Download
+                </button>
+                <button onClick={handleCopy} className={`flex items-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 ${ copied ? 'bg-green-500' : 'bg-[--color-strawberry-pink]'} text-white`}>
+                    {copied ? <CheckIcon/> : <CopyIcon/>}
+                    {copied ? 'Copied!' : 'Copy Prompt'}
+                </button>
+            </div>
+        );
+    };
+
+    const JsonDisplay = ({ jsonObject, title }) => {
+      const jsonString = JSON.stringify(jsonObject, null, 2);
+
+      const syntaxHighlight = (json) => {
+          json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+              let cls = 'json-number';
+              if (/^"/.test(match)) { cls = /:$/.test(match) ? 'json-key' : 'json-string'; }
+              else if (/true|false/.test(match)) { cls = 'json-boolean'; }
+              else if (/null/.test(match)) { cls = 'json-null'; }
+              return '<span class="' + cls + '">' + match + '</span>';
+          });
+      }
+      return (
+        <div className="rounded-lg overflow-hidden my-4 border-2" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="px-4 py-2" style={{ backgroundColor: 'var(--color-subtle-background)'}}>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-secondary)'}}>{title}</h3>
+          </div>
+          <pre className="p-4 text-sm overflow-x-auto" style={{ backgroundColor: 'var(--color-input-background)', color: 'var(--color-text-primary)'}}>
+            <code dangerouslySetInnerHTML={{ __html: syntaxHighlight(jsonString) }} />
+          </pre>
+        </div>
+      );
+    };
+    
+    const ResultCard = ({ data, onReset }) => {
+        const isComplex = 'interview_log' in data;
+        return (
+            <div className="fade-in space-y-6 p-4 sm:p-8 rounded-2xl shadow-lg border" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)' }}>
+                <div className="flex justify-between items-center pb-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                    <h2 className="text-2xl font-bold" style={{ color: 'var(--color-heading)' }}>Your Recipe is Ready!</h2>
+                    <button onClick={onReset} className="flex items-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 bg-[--color-subtle-background] hover:bg-[--color-border]">
+                        <TrashIcon className="w-5 h-5"/> Cook Another
+                    </button>
+                </div>
+
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-heading)'}}>{isComplex ? 'Initial Goal:' : 'Your Goal:'}</h3>
+                        <p className="p-3 rounded-lg border" style={{ backgroundColor: 'var(--color-subtle-background)', borderColor: 'var(--color-border)'}}>{data.metadata.description}</p>
+                    </div>
+                    
+                    <div className="text-sm text-center font-semibold p-2 rounded-lg border" style={{ backgroundColor: 'var(--color-subtle-background)', borderColor: 'var(--color-border)'}}>
+                        Prompt cooked for: <span className="font-bold" style={{color: 'var(--color-strawberry-pink)'}}>{data.targetAI}</span>
+                    </div>
+
+                    {isComplex && (
+                        <div>
+                            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-heading)'}}>Your Conversation:</h3>
+                            <div className="space-y-4 p-3 rounded-lg border max-h-48 overflow-y-auto" style={{ backgroundColor: 'var(--color-subtle-background)', borderColor: 'var(--color-border)'}}>
+                                {data.interview_log.map((item, index) => (
+                                    <div key={index}>
+                                        <p className="font-semibold" style={{ color: 'var(--color-heading)'}}>Q: {item.question}</p>
+                                        <p className="ml-4 pl-2 border-l-2" style={{borderColor: 'var(--color-border)'}}>A: {item.answer}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div>
+                        <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-heading)'}}>Chef's Notes (Best Practices):</h3>
+                        <p className="p-3 rounded-lg border" style={{ backgroundColor: 'var(--color-subtle-background)', borderColor: 'var(--color-border)'}}>{data.best_practices_summary}</p>
+                    </div>
+                    
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-bold" style={{ color: 'var(--color-heading)'}}>Your Custom-Cooked Prompt</h3>
+                            <ActionButton textToCopy={data.prompt} dataToDownload={data} />
+                        </div>
+                        <JsonDisplay title="Prompt" jsonObject={{ prompt: data.prompt }} />
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const Loader = () => {
+      const loadingMessages = [ "Waffling on it...", "Stirring the batter...", "Preheating the iron...", "Consulting the recipe...", "Adding creativity...", "Getting the syrup ready..." ];
+      const [messageIndex, setMessageIndex] = useState(0);
+      useEffect(() => {
+        const interval = setInterval(() => { setMessageIndex((prev) => (prev + 1) % loadingMessages.length); }, 1800);
+        return () => clearInterval(interval);
+      }, []);
+      return (
+        <div className="flex items-center space-x-2">
+          <div className="w-3 h-3 rounded-sm animate-active-bounce" style={{ backgroundColor: 'var(--color-strawberry-pink)', animationDelay: '0s' }}></div>
+          <div className="w-3 h-3 rounded-sm animate-active-bounce" style={{ backgroundColor: 'var(--color-butter-yellow)', animationDelay: '0.2s' }}></div>
+          <div className="w-3 h-3 rounded-sm animate-active-bounce" style={{ backgroundColor: 'var(--color-blueberry-purple)', animationDelay: '0.4s' }}></div>
+          <span className="text-sm ml-2 transition-opacity duration-500" style={{ color: 'var(--color-text-secondary)' }}>
+            {loadingMessages[messageIndex]}
+          </span>
+        </div>
+      );
+    };
+    
+    const ThemeToggle = ({ theme, onToggle }) => (
+      <button onClick={onToggle} className="p-2 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[--color-strawberry-pink]" style={{ backgroundColor: 'var(--color-subtle-background)', color: 'var(--color-heading)', '--ring-offset-color': 'var(--color-background)' }} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+        {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <SunIcon className="w-6 h-6" />}
+      </button>
+    );
+
+    const Waveform = () => (
+      <div className="flex items-end justify-center gap-1 h-6 w-full" aria-hidden="true">
+        {[...Array(5)].map((_, i) => <span key={i} className="w-1 bg-[--color-strawberry-pink] rounded-full animate-waveform" style={{ height: `${Math.random() * 16 + 8}px`, animationDelay: `-${(Math.random() * 0.5).toFixed(2)}s` }}></span>)}
+      </div>
+    );
+
+    const useTypewriter = (text, speed = 30) => {
+        const [displayText, setDisplayText] = useState('');
+        useEffect(() => {
+            setDisplayText('');
+            if (text) {
+                let i = 0;
+                const typingInterval = setInterval(() => {
+                    if (i < text.length) { setDisplayText(prev => prev + text.charAt(i)); i++; } 
+                    else { clearInterval(typingInterval); }
+                }, speed);
+                return () => clearInterval(typingInterval);
+            }
+        }, [text, speed]);
+        return displayText;
+    };
+    
+    const ChatInterface = ({ isInterviewMode, currentQuestion, interviewLog, isLoading, onSubmit }) => {
+      const [inputValue, setInputValue] = useState('');
+      const [isListening, setIsListening] = useState(false);
+      const [micError, setMicError] = useState('');
+      const recognitionRef = useRef(null);
+      const endOfMessagesRef = useRef(null);
+      const displayedQuestion = useTypewriter(currentQuestion);
+    
+      useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { setMicError("Voice not supported."); return; }
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US';
+        recognition.onresult = (event) => {
+          let finalTranscript = '';
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) { finalTranscript += event.results[i][0].transcript; }
+            else { interimTranscript += event.results[i][0].transcript; }
+          }
+          setInputValue(interviewLog.length > 0 ? (inputValue + finalTranscript) : (interimTranscript + finalTranscript));
+        };
+        recognition.onerror = (event) => { setMicError("Mic error."); setIsListening(false); };
+        recognition.onend = () => setIsListening(false);
+        recognitionRef.current = recognition;
+        return () => { recognitionRef.current?.abort(); };
+      }, [interviewLog]);
+    
+      const handleMicClick = () => {
+        if (!recognitionRef.current || isLoading) return;
+        setMicError(''); 
+        if (isListening) { recognitionRef.current.stop(); } 
+        else { setInputValue(''); recognitionRef.current.start(); setIsListening(true); }
+      };
+    
+      const handleSubmit = (e) => { e.preventDefault(); onSubmit(inputValue); setInputValue(''); };
+      
+      useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayedQuestion, isLoading, interviewLog]);
+    
+      return (
+        <div className="backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg border h-full flex flex-col min-h-[50vh] max-h-[70vh]" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)'}}>
+          <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+            {interviewLog.map((item, index) => (
+              <Fragment key={index}>
+                <div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)', color: 'var(--color-charcoal)'}}><p>{item.question}</p></div></div>
+                <div className="flex items-start gap-3 justify-end fade-in"><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-strawberry-pink)'}}><p className="text-white">{item.answer}</p></div><div className="p-2 rounded-full shadow-md" style={{backgroundColor: 'var(--color-subtle-background)'}}><UserIcon className="w-6 h-6" style={{ color: 'var(--color-text-secondary)'}} /></div></div>
+              </Fragment>
+            ))}
+            {displayedQuestion && !isLoading && (
+              <div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)', color: 'var(--color-charcoal)'}}><p>{displayedQuestion}<span className="typewriter-cursor"></span></p></div></div>
+            )}
+            {isLoading && (<div className="flex items-start gap-3 fade-in"><div className="bg-white p-2 rounded-full shadow-md"><SparklesIcon className="w-6 h-6" style={{ color: 'var(--color-butter-yellow)'}} /></div><div className="rounded-lg p-3 max-w-xl shadow" style={{ backgroundColor: 'var(--color-butter-yellow)'}}><Loader /></div></div>)}
+            <div ref={endOfMessagesRef} />
+          </div>
+          <form onSubmit={handleSubmit} className="mt-auto pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="relative">
+              <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={isLoading ? "Waiting for the chef..." : isListening ? "" : (isInterviewMode ? "Type your answer..." : "Describe your prompt goal here...")} disabled={isLoading} className={`w-full p-4 pr-32 rounded-xl focus:ring-2 focus:ring-[--color-strawberry-pink] focus:outline-none resize-none shadow-inner border transition-all ${isListening ? 'pl-16' : ''}`} style={{ backgroundColor: 'var(--color-input-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }} rows={3}/>
+              {isListening && <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none w-12"><Waveform /></div>}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <button type="button" onClick={handleMicClick} disabled={isLoading || !recognitionRef.current} className={`p-2 rounded-full transform transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed ${isListening ? 'bg-[--color-strawberry-pink] text-white animate-pulse-mic' : 'bg-[var(--color-button-inactive-bg)] text-[var(--color-button-inactive-text)]'}`} aria-label={isListening ? 'Stop listening' : 'Start listening'}><MicrophoneIcon className="w-6 h-6" /></button>
+                <button type="submit" disabled={isLoading || !inputValue.trim()} className="font-bold py-2 px-6 rounded-lg transition-all duration-300 shadow disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5" style={{ backgroundColor: 'var(--color-strawberry-pink)', color: 'white', height: '48px' }}> Send </button>
+              </div>
+            </div>
+            {micError && <p className="text-xs text-red-500 text-center mt-2">{micError}</p>}
+          </form>
+        </div>
+      );
+    };
+
+    const WelcomeScreen = ({ onStart }) => {
+        const [mode, setMode] = useState(null);
+        const [targetAI, setTargetAI] = useState('Gemini AI');
+        const ModeCard = ({ title, description, icon, value }) => (
+            <button onClick={() => setMode(value)} className={`text-left p-6 rounded-2xl border-2 transition-all duration-300 w-full hover:shadow-xl hover:-translate-y-1 ${mode === value ? 'border-[--color-strawberry-pink] shadow-lg' : 'border-[--color-border]'}`} style={{ backgroundColor: 'var(--color-subtle-background)' }}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--color-strawberry-pink)' }}>{icon}</div>
+                <h3 className="font-bold text-lg mb-1" style={{ color: 'var(--color-heading)' }}>{title}</h3>
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{description}</p>
+            </button>
+        );
+
+        return (
+            <div className="text-center max-w-3xl mx-auto py-12 px-4 fade-in">
+                <h1 className="text-5xl md:text-6xl mb-2" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-heading)' }}>iWaffle</h1>
+                <p className="text-lg mb-10" style={{ color: 'var(--color-text-secondary)' }}>Cook up the perfect prompt in a cozy creative playground.</p>
+                
+                <div className="p-6 rounded-2xl shadow-lg border space-y-8" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)' }}>
+                    <div>
+                        <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>1. Choose your Recipe</h2>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <ModeCard title="Quick Bake" description="Provide your goal, and get a expertly-crafted prompt instantly." icon={<SparklesIcon className="w-6 h-6 text-white"/>} value="simple"/>
+                            <ModeCard title="Guided Recipe" description="Let our chef ask you a few questions to build a detailed, custom prompt." icon={<MessageIcon className="w-6 h-6 text-white"/>} value="interview"/>
+                        </div>
+                    </div>
+                    
+                    <div>
+                         <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>2. Optimize For</h2>
+                         <div className="flex bg-[--color-subtle-background] rounded-lg p-1 border" style={{ borderColor: 'var(--color-border)' }}>
+                            <button onClick={() => setTargetAI('Gemini AI')} className={`w-1/2 p-2 rounded-md text-sm font-semibold transition-colors ${targetAI === 'Gemini AI' ? 'bg-[--color-butter-yellow] text-black shadow' : 'hover:bg-[--color-input-background]'}`}>Gemini AI</button>
+                            <button onClick={() => setTargetAI('ChatGPT-5')} className={`w-1/2 p-2 rounded-md text-sm font-semibold transition-colors ${targetAI === 'ChatGPT-5' ? 'bg-[--color-butter-yellow] text-black shadow' : 'hover:bg-[--color-input-background]'}`}>ChatGPT-5</button>
+                         </div>
+                    </div>
+
+                    <button onClick={() => onStart({ mode, targetAI })} disabled={!mode} className="w-full font-bold text-lg py-4 px-8 rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 bg-[--color-strawberry-pink] text-white">
+                        Start Cooking
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const ErrorDisplay = ({ data, onReset }) => (
+      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md my-8 fade-in" role="alert">
+        <p className="font-bold">{data.message}</p>
+        <ul className="mt-2 list-disc list-inside">
+          {data.suggestions.map((suggestion, index) => ( <li key={index}>{suggestion}</li> ))}
+        </ul>
+        <button onClick={onReset} className="mt-4 font-semibold py-2 px-4 rounded-lg bg-red-200 hover:bg-red-300 transition-colors">Try Again</button>
+      </div>
+    );
+    
+    //======= MAIN APP COMPONENT =======//
+    function App() {
+      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+      const [view, setView] = useState('welcome'); // welcome, chat, result
+      const [mode, setMode] = useState('interview');
+      const [targetAI, setTargetAI] = useState('Gemini AI');
+      const [isLoading, setIsLoading] = useState(false);
+      const [appOutput, setAppOutput] = useState(null);
+      const [interviewLog, setInterviewLog] = useState([]);
+      const [currentQuestion, setCurrentQuestion] = useState("");
+      const [logoAnimationKey, setLogoAnimationKey] = useState(0);
+
+      const initialInterviewQuestion = "Hello! I'm your Prompt Chef. To start, what's the main goal for the prompt you want to create?";
+    
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('theme', theme);
+      }, [theme]);
+      
+      useEffect(() => {
+        if (isLoading || view === 'result') { setLogoAnimationKey(prev => prev + 1); }
+      }, [isLoading, view]);
+    
+      const handleThemeToggle = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    
+      const handleReset = () => {
+        setAppOutput(null);
+        setInterviewLog([]);
+        setCurrentQuestion("");
+        setIsLoading(false);
+        setView('welcome');
+      };
+      
+      const handleStart = (config) => {
+        setMode(config.mode);
+        setTargetAI(config.targetAI);
+        if (config.mode === 'interview') {
+            setCurrentQuestion(initialInterviewQuestion);
+        }
+        setView('chat');
+      };
+
+      const handleChatSubmit = async (userInput) => {
+        if (!userInput.trim()) return;
+        setIsLoading(true);
+        setAppOutput(null);
+    
+        if (mode === 'simple') {
+          const result = await generatePrompt(userInput, targetAI);
+          setAppOutput(result.content);
+          setView('result');
+        } else {
+          const newLogItem = { question: currentQuestion, answer: userInput };
+          const updatedLog = [...interviewLog, newLogItem];
+          setInterviewLog(updatedLog);
+    
+          const result = await startOrContinueInterview(updatedLog, targetAI);
+          if (result.type === 'question') {
+            setCurrentQuestion(result.question);
+          } else {
+            setAppOutput(result.content);
+            setView('result');
+          }
+        }
+        setIsLoading(false);
+      };
+    
+      const renderContent = () => {
+        if (appOutput && appOutput.error) {
+            return <ErrorDisplay data={appOutput} onReset={handleReset} />;
+        }
+
+        switch (view) {
+            case 'welcome': return <WelcomeScreen onStart={handleStart} />;
+            case 'chat': return <ChatInterface isInterviewMode={mode === 'interview'} currentQuestion={currentQuestion} interviewLog={interviewLog} isLoading={isLoading} onSubmit={handleChatSubmit} />;
+            case 'result': return appOutput ? <ResultCard data={appOutput} onReset={handleReset} /> : null;
+            default: return <WelcomeScreen onStart={handleStart} />;
+        }
+      };
+    
+      return (
+        <div className="min-h-screen font-sans" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}>
+          <header className="py-4 px-6 md:px-8 flex justify-between items-center border-b sticky top-0 z-10 backdrop-blur-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(var(--color-background), 0.8)' }}>
+            <div className="flex items-center gap-3">
+              <LogoIcon key={logoAnimationKey} className="w-10 h-10 animate-jiggle" />
+              <h1 className="text-2xl font-bold tracking-tight hidden sm:block" style={{ color: 'var(--color-heading)', fontFamily: 'var(--font-display)'}}>iWaffle</h1>
+            </div>
+            <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
+          </header>
+    
+          <main className="py-8 px-4 md:px-8 max-w-4xl mx-auto">
+            {renderContent()}
+          </main>
+        </div>
+      );
+    }
+
+    //======= RENDER APPLICATION =======//
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+  </script>
 </body>
 </html>
