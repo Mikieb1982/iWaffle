@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DownloadIcon from './icons/DownloadIcon.tsx';
 import type { PromptData } from '../types.ts';
+import { useTranslations } from '../hooks/useTranslations.tsx';
 
 interface ActionButtonProps {
     textToCopy: string;
@@ -9,6 +10,7 @@ interface ActionButtonProps {
 }
 
 const ActionButton = ({ textToCopy, dataToDownload, className }: ActionButtonProps) => {
+    const { t } = useTranslations();
     const [copied, setCopied] = useState(false);
     
     const handleCopy = () => {
@@ -39,11 +41,11 @@ const ActionButton = ({ textToCopy, dataToDownload, className }: ActionButtonPro
     return (
         <div className={`flex items-center gap-2 ${className}`}>
              <button onClick={handleDownload} className="flex items-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 bg-gray-500 text-white">
-                <DownloadIcon className="w-5 h-5" /> Download
+                <DownloadIcon className="w-5 h-5" /> {t('download')}
             </button>
             <button onClick={handleCopy} className={`flex items-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow hover:-translate-y-0.5 ${ copied ? 'bg-green-500' : 'bg-[--color-strawberry-pink]'} text-white`}>
                 {copied ? <CheckIcon/> : <CopyIcon/>}
-                {copied ? 'Copied!' : 'Copy Prompt'}
+                {copied ? t('copied') : t('copyPrompt')}
             </button>
         </div>
     );

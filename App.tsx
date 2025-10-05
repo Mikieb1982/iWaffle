@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { AppMode, StartConfig, PromptData, ErrorData, InterviewLogItem } from './types.ts';
 import { generatePrompt, startOrContinueInterview } from './services/geminiService.ts';
+import { useTranslations } from './hooks/useTranslations.tsx';
 
 import WelcomeScreen from './components/WelcomeScreen.tsx';
 import ChatInterface from './components/ChatInterface.tsx';
@@ -8,8 +9,11 @@ import ResultCard from './components/ResultCard.tsx';
 import ErrorDisplay from './components/ErrorDisplay.tsx';
 import ThemeToggle from './components/ThemeToggle.tsx';
 import LogoIcon from './components/icons/LogoIcon.tsx';
+import LanguageSelector from './components/LanguageSelector.tsx';
+
 
 function App() {
+  const { t, language } = useTranslations();
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [view, setView] = useState('welcome'); // welcome, chat, result
   const [mode, setMode] = useState<AppMode>('interview');
@@ -20,12 +24,16 @@ function App() {
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [logoAnimationKey, setLogoAnimationKey] = useState(0);
 
-  const initialInterviewQuestion = "Hello! I'm your Prompt Chef. To start, what's the main goal for the prompt you want to create?";
+  const initialInterviewQuestion = t('initialQuestion');
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
   
   useEffect(() => {
     if (isLoading || view === 'result') { setLogoAnimationKey(prev => prev + 1); }
@@ -56,7 +64,7 @@ function App() {
     setAppOutput(null);
 
     if (mode === 'simple') {
-      const result = await generatePrompt(userInput, targetAI);
+      const result = await generatePrompt(userInput, targetAI, language);
       setAppOutput(result.content);
       setView('result');
     } else {
@@ -64,7 +72,7 @@ function App() {
       const updatedLog = [...interviewLog, newLogItem];
       setInterviewLog(updatedLog);
 
-      const result = await startOrContinueInterview(updatedLog, targetAI);
+      const result = await startOrContinueInterview(updatedLog, targetAI, language);
       if (result.type === 'question') {
         setCurrentQuestion(result.question);
       } else {
@@ -91,9 +99,12 @@ function App() {
   return (
     <div className="min-h-screen font-sans" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}>
       <header className="py-4 px-6 md:px-8 flex justify-between items-center border-b sticky top-0 z-10 backdrop-blur-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(var(--color-background), 0.8)' }}>
-        <div className="flex items-center gap-3">
-          <LogoIcon key={logoAnimationKey} className="w-10 h-10 animate-jiggle" />
-          <h1 className="text-2xl font-bold tracking-tight hidden sm:block" style={{ color: 'var(--color-heading)', fontFamily: 'var(--font-display)'}}>iWaffle</h1>
+        <div className="flex items-center gap-4">
+          <LanguageSelector />
+          <div className="flex items-center gap-3">
+            <LogoIcon key={logoAnimationKey} className="w-10 h-10 animate-jiggle" />
+            <h1 className="text-2xl font-bold tracking-tight hidden sm:block" style={{ color: 'var(--color-heading)', fontFamily: 'var(--font-display)'}}>iWaffle</h1>
+          </div>
         </div>
         <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
       </header>

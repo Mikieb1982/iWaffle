@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import type { AppMode, StartConfig } from '../types.ts';
 import SparklesIcon from './icons/SparklesIcon.tsx';
 import MessageIcon from './icons/MessageIcon.tsx';
+import { useTranslations } from '../hooks/useTranslations.tsx';
 
 interface WelcomeScreenProps {
     onStart: (config: StartConfig) => void;
 }
 
 const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
+    const { t } = useTranslations();
     const [mode, setMode] = useState<AppMode | null>(null);
     const [targetAI, setTargetAI] = useState('Gemini AI');
 
@@ -29,19 +31,19 @@ const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
     return (
         <div className="text-center max-w-3xl mx-auto py-12 px-4 fade-in">
             <h1 className="text-5xl md:text-6xl mb-2" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-heading)' }}>iWaffle</h1>
-            <p className="text-lg mb-10" style={{ color: 'var(--color-text-secondary)' }}>Cook up the perfect prompt in a cozy creative playground.</p>
+            <p className="text-lg mb-10" style={{ color: 'var(--color-text-secondary)' }}>{t('tagline')}</p>
             
             <div className="p-6 rounded-2xl shadow-lg border space-y-8" style={{ backgroundColor: 'var(--color-card-background)', borderColor: 'var(--color-border)' }}>
                 <div>
-                    <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>1. Choose your Recipe</h2>
+                    <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>{t('chooseRecipe')}</h2>
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <ModeCard title="Quick Bake" description="Provide your goal, and get a expertly-crafted prompt instantly." icon={<SparklesIcon className="w-6 h-6 text-white"/>} value="simple"/>
-                        <ModeCard title="Guided Recipe" description="Let our chef ask you a few questions to build a detailed, custom prompt." icon={<MessageIcon className="w-6 h-6 text-white"/>} value="interview"/>
+                        <ModeCard title={t('quickBakeTitle')} description={t('quickBakeDescription')} icon={<SparklesIcon className="w-6 h-6 text-white"/>} value="simple"/>
+                        <ModeCard title={t('guidedRecipeTitle')} description={t('guidedRecipeDescription')} icon={<MessageIcon className="w-6 h-6 text-white"/>} value="interview"/>
                     </div>
                 </div>
                 
                 <div>
-                     <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>2. Optimize For</h2>
+                     <h2 className="text-xl font-bold mb-4 text-left" style={{ color: 'var(--color-heading)'}}>{t('optimizeFor')}</h2>
                      <div className="flex bg-[--color-subtle-background] rounded-lg p-1 border" style={{ borderColor: 'var(--color-border)' }}>
                         <button onClick={() => setTargetAI('Gemini AI')} className={`w-1/2 p-2 rounded-md text-sm font-semibold transition-colors ${targetAI === 'Gemini AI' ? 'bg-[--color-butter-yellow] text-black shadow' : 'hover:bg-[--color-input-background]'}`}>Gemini AI</button>
                         <button onClick={() => setTargetAI('ChatGPT-5')} className={`w-1/2 p-2 rounded-md text-sm font-semibold transition-colors ${targetAI === 'ChatGPT-5' ? 'bg-[--color-butter-yellow] text-black shadow' : 'hover:bg-[--color-input-background]'}`}>ChatGPT-5</button>
@@ -49,7 +51,7 @@ const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
                 </div>
 
                 <button onClick={() => onStart({ mode, targetAI } as StartConfig)} disabled={!mode} className="w-full font-bold text-lg py-4 px-8 rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 bg-[--color-strawberry-pink] text-white">
-                    Start Cooking
+                    {t('startCooking')}
                 </button>
             </div>
         </div>
